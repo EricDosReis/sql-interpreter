@@ -24,12 +24,36 @@ Database.prototype.createTable = function(statement) {
   })
 }
 
+Database.prototype.insert = function(statement) {
+  const insertRegExp = /INSERT INTO ([a-z]+) \((.+)\) VALUES \((.+)\)/;
+  const [, tableName, rawColumns, rawValues] = statement.match(insertRegExp);
+
+  const columns = rawColumns.split(',').map(column => column.trim());
+  const values = rawValues.split(',').map(value => value.trim());
+
+  const row = columns.reduce((acc, column, index) => {
+    acc[column] = values[index];
+
+    return acc;
+  }, {});
+
+  this.tables[tableName].data.push(row);
+}
+
 Database.prototype.execute = function(statement) {
   if (statement.startsWith('CREATE TABLE')) {
     this.createTable(statement);
-  } else {
-    throw new DatabaseError(statement, `Syntax error: "${statement}"`);
+
+    return;
   }
+
+  if (statement.startsWith('INSERT INTO')) {
+    this.insert(statement);
+
+    return;
+  }
+
+  throw new DatabaseError(statement, `Unknown statement: '${statement}'`);
 }
 
 const database = new Database();
@@ -38,9 +62,13 @@ const selectAuthorStatement = 'SELECT id, name FROM author';
 
 try {
   database.execute(createTableStatement);
+  database.execute('INSERT INTO author (id, name, age) VALUES (1, Douglas Crockford, 62)');
+  database.execute('INSERT INTO author (id, name, age) VALUES (2, Linus Torvalds, 47)');
+  database.execute('INSERT INTO author (id, name, age) VALUES (3, Martin Fowler, 54)');
+
   console.log(JSON.stringify(database, null, 2));
 
-  database.execute(selectAuthorStatement);
+  // database.execute(selectAuthorStatement);
 } catch (error) {
   console.log(error.message);
 }
