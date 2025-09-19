@@ -40,6 +40,19 @@ Database.prototype.insert = function(statement) {
   this.tables[tableName].data.push(row);
 }
 
+Database.prototype.delete = function(statement) {
+  const deleteRegExp = /DELETE FROM ([a-z]+)(?: WHERE (.+))?/;
+  const [, tableName, whereClause] = statement.match(deleteRegExp);
+
+  if (whereClause) {
+    const [whereColumn, whereValue] = whereClause.split('=').map(value => value.trim());
+
+    this.tables[tableName].data = this.tables[tableName].data.filter(row => row[whereColumn] !== whereValue);
+  } else {
+    this.tables[tableName].data = [];
+  }
+}
+
 Database.prototype.select = function(statement) {
   const selectRegExp = /SELECT (.+) FROM ([a-z]+)(?: WHERE (.+))?/;
   const [, rawSelectColumns, tableName, whereClause] = statement.match(selectRegExp);
@@ -81,6 +94,12 @@ Database.prototype.execute = function(statement) {
     return;
   }
 
+  if (statement.startsWith('DELETE FROM')) {
+    this.delete(statement);
+
+    return;
+  }
+
   if (statement.startsWith('SELECT')) {
     return this.select(statement);
   }
@@ -97,13 +116,18 @@ try {
   database.execute('INSERT INTO author (id, name, age) VALUES (2, Linus Torvalds, 47)');
   database.execute('INSERT INTO author (id, name, age) VALUES (3, Martin Fowler, 54)');
 
-  console.log(JSON.stringify(database, null, 2));
-
+  console.log('-----------SELECT RESULT-----------');
   console.log(database.execute("SELECT name, age FROM author"));
   console.log(database.execute("SELECT name, age FROM author WHERE id = 1"));
   console.log(database.execute("SELECT * FROM author WHERE id = 2"));
   console.log(database.execute("SELECT * FROM author WHERE id = 1000"));
   console.log(database.execute("SELECT name FROM author WHERE id = 1000"));
+
+  console.log('-----------DELETE RESULT-----------');
+  database.execute("DELETE FROM author WHERE id = 2");
+  console.log(database.execute("SELECT * FROM author"));
+  database.execute("DELETE FROM author");
+  console.log(database.execute("SELECT * FROM author"));
 } catch (error) {
   console.log(error.message);
 }
