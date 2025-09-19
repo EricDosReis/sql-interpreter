@@ -40,6 +40,34 @@ Database.prototype.insert = function(statement) {
   this.tables[tableName].data.push(row);
 }
 
+Database.prototype.select = function(statement) {
+  const selectRegExp = /SELECT (.+) FROM ([a-z]+)(?: WHERE (.+))?/;
+  const [, rawSelectColumns, tableName, whereClause] = statement.match(selectRegExp);
+  const selectColumns = rawSelectColumns.split(',').map(column => column.trim());
+  let rows = [];
+
+  if (whereClause) {
+    const [whereColumn, whereValue] = whereClause.split('=').map(value => value.trim());
+
+    rows = this.tables[tableName].data.filter(row => row[whereColumn] === whereValue);
+  } else {
+    rows = this.tables[tableName].data;
+  }
+
+  if (selectColumns.includes('*') === false && rows.length > 0) {
+    rows = rows
+      .map((row) => {
+        return selectColumns.reduce((acc, column) => {
+          acc[column] = row[column];
+
+          return acc;
+        }, {});
+      });
+  }
+
+  return rows;
+}
+
 Database.prototype.execute = function(statement) {
   if (statement.startsWith('CREATE TABLE')) {
     this.createTable(statement);
@@ -53,12 +81,15 @@ Database.prototype.execute = function(statement) {
     return;
   }
 
+  if (statement.startsWith('SELECT')) {
+    return this.select(statement);
+  }
+
   throw new DatabaseError(statement, `Unknown statement: '${statement}'`);
 }
 
 const database = new Database();
 const createTableStatement = 'CREATE TABLE author (id number, name string, age number, city string, state string, country string)';
-const selectAuthorStatement = 'SELECT id, name FROM author';
 
 try {
   database.execute(createTableStatement);
@@ -68,7 +99,11 @@ try {
 
   console.log(JSON.stringify(database, null, 2));
 
-  // database.execute(selectAuthorStatement);
+  console.log(database.execute("SELECT name, age FROM author"));
+  console.log(database.execute("SELECT name, age FROM author WHERE id = 1"));
+  console.log(database.execute("SELECT * FROM author WHERE id = 2"));
+  console.log(database.execute("SELECT * FROM author WHERE id = 1000"));
+  console.log(database.execute("SELECT name FROM author WHERE id = 1000"));
 } catch (error) {
   console.log(error.message);
 }
