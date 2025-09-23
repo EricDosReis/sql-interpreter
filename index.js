@@ -1,3 +1,25 @@
+function Parser() {
+  const commands = new Map([
+    ['createTable', /CREATE TABLE ([a-z]+) \((.+)\)/],
+    ['insert', /INSERT INTO ([a-z]+) \((.+)\) VALUES \((.+)\)/],
+    ['delete', /DELETE FROM ([a-z]+)(?: WHERE (.+))?/],
+    ['select', /SELECT (.+) FROM ([a-z]+)(?: WHERE (.+))?/]
+  ]);
+
+  this.parse = function(statement) {
+    for (let [command, regExp] of commands) {
+      const parsedStatement = statement.match(regExp);
+
+      if (parsedStatement) {
+        return {
+          command,
+          parsedStatement,
+        }
+      }
+    }
+  }
+}
+
 function DatabaseError(statement, message) {
   this.message = message;
   this.statement = statement;
@@ -5,11 +27,11 @@ function DatabaseError(statement, message) {
 
 function Database() {
   this.tables = {};
+  this.parser = new Parser();
 }
 
-Database.prototype.createTable = function(statement) {
-  const createTableRegExp = /CREATE TABLE ([a-z]+) \((.+)\)/;
-  const [, tableName, rawColumns] = statement.match(createTableRegExp);
+Database.prototype.createTable = function(parsedStatement) {
+  const [, tableName, rawColumns] = parsedStatement;
   const columns = rawColumns.split(',').map(column => column.trim());
 
   this.tables[tableName] = {
@@ -24,9 +46,8 @@ Database.prototype.createTable = function(statement) {
   })
 }
 
-Database.prototype.insert = function(statement) {
-  const insertRegExp = /INSERT INTO ([a-z]+) \((.+)\) VALUES \((.+)\)/;
-  const [, tableName, rawColumns, rawValues] = statement.match(insertRegExp);
+Database.prototype.insert = function(parsedStatement) {
+  const [, tableName, rawColumns, rawValues] = parsedStatement;
 
   const columns = rawColumns.split(',').map(column => column.trim());
   const values = rawValues.split(',').map(value => value.trim());
@@ -40,9 +61,8 @@ Database.prototype.insert = function(statement) {
   this.tables[tableName].data.push(row);
 }
 
-Database.prototype.delete = function(statement) {
-  const deleteRegExp = /DELETE FROM ([a-z]+)(?: WHERE (.+))?/;
-  const [, tableName, whereClause] = statement.match(deleteRegExp);
+Database.prototype.delete = function(parsedStatement) {
+  const [, tableName, whereClause] = parsedStatement;
 
   if (whereClause) {
     const [whereColumn, whereValue] = whereClause.split('=').map(value => value.trim());
@@ -53,9 +73,8 @@ Database.prototype.delete = function(statement) {
   }
 }
 
-Database.prototype.select = function(statement) {
-  const selectRegExp = /SELECT (.+) FROM ([a-z]+)(?: WHERE (.+))?/;
-  const [, rawSelectColumns, tableName, whereClause] = statement.match(selectRegExp);
+Database.prototype.select = function(parsedStatement) {
+  const [, rawSelectColumns, tableName, whereClause] = parsedStatement;
   const selectColumns = rawSelectColumns.split(',').map(column => column.trim());
   let rows = [];
 
@@ -82,26 +101,10 @@ Database.prototype.select = function(statement) {
 }
 
 Database.prototype.execute = function(statement) {
-  if (statement.startsWith('CREATE TABLE')) {
-    this.createTable(statement);
+  const result = this.parser.parse(statement);
 
-    return;
-  }
-
-  if (statement.startsWith('INSERT INTO')) {
-    this.insert(statement);
-
-    return;
-  }
-
-  if (statement.startsWith('DELETE FROM')) {
-    this.delete(statement);
-
-    return;
-  }
-
-  if (statement.startsWith('SELECT')) {
-    return this.select(statement);
+  if (result) {
+    return this[result.command](result.parsedStatement);
   }
 
   throw new DatabaseError(statement, `Unknown statement: '${statement}'`);
@@ -128,6 +131,9 @@ try {
   console.log(database.execute("SELECT * FROM author"));
   database.execute("DELETE FROM author");
   console.log(database.execute("SELECT * FROM author"));
+
+  console.log('-----------WRONG COMMAND-----------');
+  database.execute('INSERT author (id, name, age) VALUES (4, Brendan Eich, 64)');
 } catch (error) {
   console.log(error.message);
 }
