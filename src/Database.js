@@ -1,33 +1,5 @@
-class Parser {
-  constructor() {
-    this.commands = new Map([
-      ['createTable', /CREATE TABLE ([a-z]+) \((.+)\)/],
-      ['insert', /INSERT INTO ([a-z]+) \((.+)\) VALUES \((.+)\)/],
-      ['delete', /DELETE FROM ([a-z]+)(?: WHERE (.+))?/],
-      ['select', /SELECT (.+) FROM ([a-z]+)(?: WHERE (.+))?/]
-    ]);
-  }
-
-  parse(statement) {
-    for (let [command, regExp] of this.commands) {
-      const parsedStatement = statement.match(regExp);
-
-      if (parsedStatement) {
-        return {
-          command,
-          parsedStatement,
-        }
-      }
-    }
-  }
-}
-
-class DatabaseError {
-  constructor(statement, message) {
-    this.message = message;
-    this.statement = statement;
-  }
-}
+import { DatabaseError } from './DatabaseError.js';
+import { Parser } from './Parser.js';
 
 class Database {
   constructor() {
@@ -37,6 +9,7 @@ class Database {
 
   createTable(parsedStatement) {
     const [, tableName, rawColumns] = parsedStatement;
+
     const columns = rawColumns.split(',').map(column => column.trim());
 
     this.tables[tableName] = {
@@ -80,6 +53,7 @@ class Database {
 
   select(parsedStatement) {
     const [, rawSelectColumns, tableName, whereClause] = parsedStatement;
+
     const selectColumns = rawSelectColumns.split(',').map(column => column.trim());
     let rows = [];
 
@@ -116,29 +90,4 @@ class Database {
   }
 }
 
-const database = new Database();
-
-try {
-  database.execute('CREATE TABLE author (id number, name string, age number, city string, state string, country string)');
-  database.execute('INSERT INTO author (id, name, age) VALUES (1, Douglas Crockford, 62)');
-  database.execute('INSERT INTO author (id, name, age) VALUES (2, Linus Torvalds, 47)');
-  database.execute('INSERT INTO author (id, name, age) VALUES (3, Martin Fowler, 54)');
-
-  console.log('-----------SELECT RESULT-----------');
-  console.log(database.execute("SELECT name, age FROM author"));
-  console.log(database.execute("SELECT name, age FROM author WHERE id = 1"));
-  console.log(database.execute("SELECT * FROM author WHERE id = 2"));
-  console.log(database.execute("SELECT * FROM author WHERE id = 1000"));
-  console.log(database.execute("SELECT name FROM author WHERE id = 1000"));
-
-  console.log('-----------DELETE RESULT-----------');
-  database.execute("DELETE FROM author WHERE id = 2");
-  console.log(database.execute("SELECT * FROM author"));
-  database.execute("DELETE FROM author");
-  console.log(database.execute("SELECT * FROM author"));
-
-  console.log('-----------WRONG COMMAND-----------');
-  database.execute('INSERT author (id, name, age) VALUES (4, Brendan Eich, 64)');
-} catch (error) {
-  console.log(error.message);
-}
+export { Database };

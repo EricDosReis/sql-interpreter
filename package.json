@@ -1,10 +1,11 @@
 {
   "name": "sql-interpreter",
   "version": "1.0.0",
+  "type": "module",
   "description": "This is a SQL interpreter written in JavaScript that supports common commands such as CREATE TABLE, INSERT, DELETE, SELECT, and more.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node main.js"
   },
   "keywords": [
     "sql",
