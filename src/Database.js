@@ -80,13 +80,17 @@ class Database {
   }
 
   execute(statement) {
-    const result = this.parser.parse(statement);
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const result = this.parser.parse(statement);
 
-    if (result) {
-      return this[result.command](result.parsedStatement);
-    }
+        if (result) {
+          resolve(this[result.command](result.parsedStatement));
+        }
 
-    throw new DatabaseError(statement, `Unknown statement: '${statement}'`);
+        reject(new DatabaseError(statement, `Unknown statement: '${statement}'`));
+      }, 200);
+    })
   }
 }
 
